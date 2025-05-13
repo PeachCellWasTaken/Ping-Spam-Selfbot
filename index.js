@@ -40,7 +40,8 @@ Mazach Empire Beta:
 
 ${config.prefix}p - Mass ping, do setup first.
 ${config.prefix}sp - Single pings (50 active members, 50 messages).
-${config.prefix}send (message) (number) - Sends your message repeatedly.
+${config.prefix}setup - Setup the target ping system.
+${config.prefix}spm (message) (amount) - Active user spam message with ping.
 
 Copyright © MazachEmpire
 Support Server: https://discord.gg/EjfUqUv4DU
@@ -91,8 +92,8 @@ client.on('messageCreate', async message => {
                             recentUsers.add(msg.author.id);
                         }
                     });
-                } catch (err) {
-                    console.log(chalk.red(`Could not fetch messages from ${channel.name}`));
+                } catch {
+                    continue;
                 }
             }
 
@@ -120,7 +121,7 @@ client.on('messageCreate', async message => {
             }
 
         } catch (error) {
-            console.error(chalk.red('Error:'), error);
+            console.error(chalk.red('Error:', error));
         }
     }
 
@@ -184,34 +185,72 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // SEND Command
-    if (message.content.startsWith(`${config.prefix}send `)) {
-        if (isOnCooldown('send')) {
-            console.log(chalk.yellow('Send command is on cooldown.'));
+    // SPM Command
+    if (message.content.startsWith(`${config.prefix}spm`)) {
+        if (isOnCooldown('spm')) {
+            console.log(chalk.yellow('SPM is on cooldown.'));
             return;
         }
-        setCooldown('send');
+        setCooldown('spm');
+
+        const args = message.content.split(' ').slice(1);
+        const msgToSend = args.slice(0, -1).join(' ');
+        const amount = parseInt(args[args.length - 1]);
+
+        if (!msgToSend || isNaN(amount)) {
+            console.log(chalk.red(`Usage: ${config.prefix}spm (message) (amount)`));
+            return;
+        }
 
         try {
             await message.delete();
 
-            const args = message.content.slice(`${config.prefix}send `.length).trim().split(' ');
-            const repeat = parseInt(args.pop(), 10);
-            const msgToSend = args.join(' ');
+            const guild = message.guild;
+            const textChannels = guild.channels.cache.filter(c => c.isText() && c.viewable);
 
-            if (!msgToSend || isNaN(repeat) || repeat < 1 || repeat > 50) {
-                console.log(chalk.red('Invalid usage. Correct: {prefix}send (message) (1-50)'));
+            let recentUsers = new Set();
+
+            for (const channel of textChannels.values()) {
+                try {
+                    const messages = await channel.messages.fetch({ limit: 100 });
+                    messages.forEach(msg => {
+                        if (!msg.author.bot) {
+                            recentUsers.add(msg.author.id);
+                        }
+                    });
+                } catch {
+                    continue;
+                }
+            }
+
+            await guild.members.fetch();
+
+            const eligibleMembers = guild.members.cache.filter(member =>
+                recentUsers.has(member.id) &&
+                !member.user.bot &&
+                !member.roles.cache.some(role => role.permissions.has('ADMINISTRATOR'))
+            ).first(amount);
+
+            if (eligibleMembers.length === 0) {
+                console.log(chalk.yellow('No eligible members found.'));
                 return;
             }
 
-            console.log(chalk.green(`Sending message "${msgToSend}" ${repeat} times...`));
+            console.log(chalk.green(`Sending ${eligibleMembers.length} messages with ping and custom message...`));
 
-            for (let i = 0; i < repeat; i++) {
-                await message.channel.send(msgToSend);
+            for (const member of eligibleMembers) {
+                try {
+                    const sentMsg = await message.channel.send(`<@${member.id}> ${msgToSend}`);
+                    setTimeout(() => {
+                        sentMsg.delete().catch(() => {});
+                    }, config.spDeleteDelay);
+                } catch {
+                    continue;
+                }
             }
 
         } catch (error) {
-            console.error(chalk.red('Error in send command:'), error);
+            console.error(chalk.red('Error:'), error);
         }
     }
 
@@ -235,76 +274,5 @@ const chunkMessages = (mentionsArray, maxLength = 2000) => {
 
     return chunks;
 };
-
-// SPM Command - Spam ping message to last active members
-if (message.content.startsWith(`${config.prefix}spm`)) {
-    if (isOnCooldown('spm')) {
-        console.log(chalk.yellow('SPM command is on cooldown.'));
-        return;
-    }
-    setCooldown('spm');
-
-    try {
-        await message.delete();
-
-        const args = message.content.split(' ').slice(1);
-        const msgContent = args.slice(0, -1).join(' ');
-        const amount = parseInt(args[args.length - 1]);
-
-        if (!msgContent || isNaN(amount) || amount < 1) {
-            console.log(chalk.red(`Usage: ${config.prefix}spm (message) (amount)`));
-            return;
-        }
-
-        const guild = message.guild;
-        const textChannels = guild.channels.cache.filter(c => c.isText() && c.viewable);
-
-        let recentUsers = new Set();
-
-        for (const channel of textChannels.values()) {
-            try {
-                const messages = await channel.messages.fetch({ limit: 100 });
-                messages.forEach(msg => {
-                    if (!msg.author.bot) {
-                        recentUsers.add(msg.author.id);
-                    }
-                });
-            } catch {
-                continue;
-            }
-        }
-
-        await guild.members.fetch();
-
-        const eligibleMembers = guild.members.cache.filter(member =>
-            recentUsers.has(member.id) &&
-            !member.user.bot &&
-            !member.roles.cache.some(role => role.permissions.has('ADMINISTRATOR'))
-        ).first(amount);
-
-        if (eligibleMembers.length < 1) {
-            console.log(chalk.yellow('No eligible members found.'));
-            return;
-        }
-
-        console.log(chalk.green(`Sending ${amount} spam ping messages...`));
-
-        for (let i = 0; i < amount; i++) {
-            try {
-                const target = eligibleMembers[i % eligibleMembers.length];
-                const sentMsg = await message.channel.send(`<@${target.id}> ${msgContent}`);
-                setTimeout(() => {
-                    sentMsg.delete().catch(() => {});
-                }, config.spDeleteDelay);
-            } catch {
-                continue;
-            }
-        }
-
-    } catch (error) {
-        console.error(chalk.red('Error:'), error);
-    }
-}
-
 
 client.login(config.token);
