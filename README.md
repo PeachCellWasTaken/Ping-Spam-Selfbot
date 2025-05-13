@@ -2,7 +2,7 @@
 
 > **NOTE:** Selfbots are against Discord's ToS and can lead to account termination.  
 > Use at your own risk and preferably on an alt account.
-
+> this is also meant to be paired with a raid bot, one that doesnt have to be added. (idk what to name those lol)
 ---
 
 ## SETUP:
