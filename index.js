@@ -185,76 +185,70 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // SPM Command
-    if (message.content.startsWith(`${config.prefix}spm`)) {
-        if (isOnCooldown('spm')) {
-            console.log(chalk.yellow('SPM is on cooldown.'));
-            return;
-        }
-        setCooldown('spm');
+// SPM Command
+if (message.content.startsWith(`${config.prefix}spm`)) {
+    if (isOnCooldown('spm')) {
+        console.log(chalk.yellow('SPM is on cooldown.'));
+        return;
+    }
+    setCooldown('spm');
 
-        const args = message.content.split(' ').slice(1);
-        const msgToSend = args.slice(0, -1).join(' ');
-        const amount = parseInt(args[args.length - 1]);
+    const args = message.content.split(' ').slice(1);
+    const msgToSend = args.slice(0, -1).join(' ');
+    const amount = parseInt(args[args.length - 1]);
 
-        if (!msgToSend || isNaN(amount)) {
-            console.log(chalk.red(`Usage: ${config.prefix}spm (message) (amount)`));
-            return;
-        }
-
-        try {
-            await message.delete();
-
-            const guild = message.guild;
-            const textChannels = guild.channels.cache.filter(c => c.isText() && c.viewable);
-
-            let recentUsers = new Set();
-
-            for (const channel of textChannels.values()) {
-                try {
-                    const messages = await channel.messages.fetch({ limit: 100 });
-                    messages.forEach(msg => {
-                        if (!msg.author.bot) {
-                            recentUsers.add(msg.author.id);
-                        }
-                    });
-                } catch {
-                    continue;
-                }
-            }
-
-            await guild.members.fetch();
-
-            const eligibleMembers = guild.members.cache.filter(member =>
-                recentUsers.has(member.id) &&
-                !member.user.bot &&
-                !member.roles.cache.some(role => role.permissions.has('ADMINISTRATOR'))
-            ).first(amount);
-
-            if (eligibleMembers.length === 0) {
-                console.log(chalk.yellow('No eligible members found.'));
-                return;
-            }
-
-            console.log(chalk.green(`Sending ${eligibleMembers.length} messages with ping and custom message...`));
-
-            for (const member of eligibleMembers) {
-                try {
-                    const sentMsg = await message.channel.send(`<@${member.id}> ${msgToSend}`);
-                    setTimeout(() => {
-                        sentMsg.delete().catch(() => {});
-                    }, config.spDeleteDelay);
-                } catch {
-                    continue;
-                }
-            }
-
-        } catch (error) {
-            console.error(chalk.red('Error:'), error);
-        }
+    if (!msgToSend || isNaN(amount)) {
+        console.log(chalk.red(`Usage: ${config.prefix}spm (message) (amount)`));
+        return;
     }
 
-});
+    try {
+        const guild = message.guild;
+        const textChannels = guild.channels.cache.filter(c => c.isText() && c.viewable);
+
+        let recentUsers = new Set();
+
+        for (const channel of textChannels.values()) {
+            try {
+                const messages = await channel.messages.fetch({ limit: 100 });
+                messages.forEach(msg => {
+                    if (!msg.author.bot) {
+                        recentUsers.add(msg.author.id);
+                    }
+                });
+            } catch {
+                continue;
+            }
+        }
+
+        await guild.members.fetch();
+
+        const eligibleMembers = guild.members.cache.filter(member =>
+            recentUsers.has(member.id) &&
+            !member.user.bot &&
+            !member.roles.cache.some(role => role.permissions.has('ADMINISTRATOR'))
+        ).first(amount);
+
+        if (eligibleMembers.length === 0) {
+            console.log(chalk.yellow('No eligible members found.'));
+            return;
+        }
+
+        console.log(chalk.green(`Sending ${eligibleMembers.length} messages with ping and custom message...`));
+
+        for (const member of eligibleMembers) {
+            try {
+                await message.channel.send(`<@${member.id}> ${msgToSend}`);
+            } catch {
+                continue;
+            }
+        }
+
+    } catch (error) {
+        console.error(chalk.red('Error:'), error);
+    }
+}
+
 
 const chunkMessages = (mentionsArray, maxLength = 2000) => {
     let chunks = [];
@@ -274,5 +268,5 @@ const chunkMessages = (mentionsArray, maxLength = 2000) => {
 
     return chunks;
 };
-
+})
 client.login(config.token);
