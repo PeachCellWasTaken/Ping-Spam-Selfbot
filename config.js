@@ -1,17 +1,11 @@
 module.exports = {
-    token: 'Token Here',  // Your selfbot token
-    prefix: '-',                        // The prefix for commands (e.g., -p, -s, etc.)
-    
-    // Cooldowns in milliseconds
+    token: 'ok', //YOUR USER TOKEN, NOT A BOT.
+    prefix: '-',  // put your own prefix here, itll be used as such: -(my prefix)spm
     cooldowns: {
-        p: 30000,         // Mass ping cooldown: 30 seconds
-        sp: 20000,        // Single ping cooldown: 20 seconds
-        spm: 30000,       // SPM cooldown: 30 seconds (lower if you wanna get termed lol)
-        send: 10000,      // Send message cooldown: 10 seconds
-        s: 10000,         // Simple send cooldown: 10 seconds 
-        react: 10000,     // React cooldown: 10 seconds
-        serverinfo: 5000  // Server info cooldown: 5 seconds
+        sp: 60000,  // 1 minute cooldown 
+        p: 120000,  // 2 minute cooldown (this cmd sends all pings in 1 message do NOT use in big servers.)
+        send: 30000, //30 sex
+        spm: 10000
     },
-
-    spDeleteDelay: 5000 // Time in ms before automatically deleting sent ping messages
+    spDeleteDelay: 1000  
 };
