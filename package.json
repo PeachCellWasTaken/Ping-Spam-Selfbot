@@ -1,16 +1,19 @@
 {
-  "name": "nodejs",
+  "name": "miku-selfbot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Ossyra Raiding Inc Miku Selfbot",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Peach",
+  "license": "MIT",
   "dependencies": {
-    "@types/node": "^22.13.11",
-    "chalk": "^5.4.1"
-  }
+    "chalk": "^5.3.0",
+    "discord.js-selfbot-v13": "^3.7.1",
+    "electron": "^26.5.1",
+    "figlet": "^1.5.2",
+    "open": "^11.0.0"
+  },
+  "type": "commonjs"
 }
