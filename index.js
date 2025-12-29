@@ -2,6 +2,8 @@ const { Client, Intents } = require('discord.js-selfbot-v13');
 const config = require('./config.js');
 const figlet = require('figlet');
 const chalk = require('chalk').default;
+const openModule = require('open');
+const open = openModule.default || openModule;
 
 const client = new Client({
     checkUpdate: false,
@@ -9,55 +11,54 @@ const client = new Client({
         Intents.FLAGS.GUILDS,
         Intents.FLAGS.GUILD_MESSAGES,
         Intents.FLAGS.GUILD_MEMBERS,
-        Intents.FLAGS.MESSAGE_CONTENT
+        Intents.FLAGS.DIRECT_MESSAGES
     ]
 });
 
 const cooldowns = new Map();
 
-// =======================
-// Utility Functions
-// =======================
 const displayAsciiArt = () => {
-    figlet('Maz Pinger', (err, data) => {
+    figlet.text('Miku Selfbot', {
+        font: 'Slant',
+        horizontalLayout: 'default',
+        verticalLayout: 'default'
+    }, (err, data) => {
         if (err) return console.log(chalk.red(err));
         console.log(chalk.cyan(data));
+        console.log(chalk.black('================== Ossyra Raiding Inc. =================='));
     });
 };
 
 const showBotInfo = () => {
-    console.log(chalk.yellow('==========================================='));
-    console.log(chalk.green(`Signed in as: ${client.user.tag}`));
-    console.log(chalk.cyan(`Server count: ${client.guilds.cache.size}`));
-    console.log(chalk.yellow('==========================================='));
+    console.log(chalk.whiteBright('====================== Bot Info ========================'));
+    console.log(chalk.blackBright(`Logged in as: ${client.user.tag}`));
+    console.log(chalk.blackBright(`Server count: ${client.guilds.cache.size}`));
+    console.log(chalk.whiteBright('======================================================='));
 };
-
 const showHelp = () => {
-    console.log(chalk.magenta(`
-===================================================
-Mazach Empire Beta Commands:
+    console.log(chalk.cyanBright(`
+==================== Commands ====================
+${config.prefix}p - Mass ping active users ^_^
+${config.prefix}sp - Single ping (50 users) <3
+${config.prefix}spm [message] [amount] - Ping users with custom message :P
+${config.prefix}s [message] [amount] - Simple repeated message :3
+${config.prefix}react [emoji] [amount] - React to recent messages >.<
+${config.prefix}serverinfo - Server info O.O
+${config.prefix}miku - Show Miku image and send 3 GIFs :^
 
-${config.prefix}p - Mass ping
-${config.prefix}sp - Single ping (50 users)
-${config.prefix}spm [message] [amount] - Active user spam with ping
-${config.prefix}send [message] [amount] - Send message multiple times
-${config.prefix}s [message] [amount] - Simple send message multiple times
-${config.prefix}react [emoji] [amount] - Auto-react to recent messages
-${config.prefix}serverinfo - Show server information
-
-Profile / Status Commands:
-${config.prefix}status [text] - Set custom status
-${config.prefix}play [text] - Set playing activity
-${config.prefix}watch [text] - Set watching activity
-${config.prefix}listen [text] - Set listening activity
-${config.prefix}stream [text] - Set streaming activity
-${config.prefix}clearstatus - Clear activities/status
+Status/Profile Commands:
+${config.prefix}status [text] - Custom status
+${config.prefix}play [text] - Playing activity
+${config.prefix}watch [text] - Watching activity
+${config.prefix}listen [text] - Listening activity
+${config.prefix}stream [text] - Streaming activity
+${config.prefix}clearstatus - Clear status/activity
 ${config.prefix}av [url] - Change avatar
 ${config.prefix}name [newName] - Change username
-${config.prefix}nick [newNickname] - Change server nickname
+${config.prefix}nick [newNickname] - Change nickname
 
-Copyright © MazachEmpire
-Support Server: https://discord.gg/EjfUqUv4DU
+Copyright © Ossyra Raiding Inc.
+Support Server: https://discord.gg/ZHCv9w5njC
 ===================================================
 `));
 };
@@ -76,19 +77,24 @@ const chunkMessages = (mentionsArray, maxLength = 2000) => {
     return chunks;
 };
 
-// =======================
-// Ready Event
-// =======================
+const openMikuWindow = async () => {
+    try {
+        await open('https://open.spotify.com/track/7aux5UvnlBDYlrlwoczifW');
+    } catch (err) {
+        console.error(err);
+    }
+};
+
+
+
+
 client.on('ready', () => {
     console.clear();
+    showHelp();
     displayAsciiArt();
     showBotInfo();
-    showHelp();
 });
 
-// =======================
-// Message Commands
-// =======================
 client.on('messageCreate', async message => {
     if (message.author.id !== client.user.id) return;
 
@@ -96,259 +102,110 @@ client.on('messageCreate', async message => {
     const isOnCooldown = (cmd) => cooldowns.has(cmd) && (now - cooldowns.get(cmd)) < (config.cooldowns?.[cmd] || 0);
     const setCooldown = (cmd) => cooldowns.set(cmd, now);
 
-    // =======================
-    // Mass Ping
-    // =======================
-    if (message.content === `${config.prefix}p`) {
-        if (isOnCooldown('p')) return console.log(chalk.yellow('Mass ping cooldown.'));
-        setCooldown('p');
+    const args = message.content.split(' ').slice(1);
+    const command = message.content.split(' ')[0].slice(config.prefix.length).toLowerCase();
 
+    if (['p', 'sp', 'spm'].includes(command)) {
+        if (isOnCooldown(command)) return console.log(chalk.yellow(`${command.toUpperCase()} cooldown.`));
+        setCooldown(command);
         try {
             await message.delete().catch(() => {});
             const guild = message.guild;
-            const textChannels = guild.channels.cache.filter(c => c.isText() && c.viewable);
+            const textChannels = guild.channels.cache.filter(c => c.type === 'GUILD_TEXT' && c.viewable);
             let recentUsers = new Set();
-
             for (const channel of textChannels.values()) {
                 try {
-                    const messages = await channel.messages.fetch({ limit: 100 });
-                    messages.forEach(msg => { if (!msg.author.bot) recentUsers.add(msg.author.id); });
+                    const msgs = await channel.messages.fetch({ limit: 100 });
+                    msgs.forEach(m => { if (!m.author.bot) recentUsers.add(m.author.id); });
                 } catch {}
             }
-
             await guild.members.fetch();
-            const eligibleMembers = guild.members.cache.filter(m =>
-                recentUsers.has(m.id) &&
-                !m.user.bot &&
-                !m.roles.cache.some(r => r.permissions.has('ADMINISTRATOR'))
-            );
-
-            if (eligibleMembers.size < 6) return console.log(chalk.yellow('Not enough eligible members.'));
-            const mentions = eligibleMembers.map(m => `<@${m.id}>`);
-            const chunks = chunkMessages(mentions);
-
-            for (const chunk of chunks) {
-                const sent = await message.channel.send(chunk);
-                setTimeout(() => sent.delete().catch(() => {}), config.spDeleteDelay);
-            }
-        } catch (err) { console.error(chalk.red(err)); }
-    }
-
-    // =======================
-    // Single Ping
-    // =======================
-    if (message.content === `${config.prefix}sp`) {
-        if (isOnCooldown('sp')) return console.log(chalk.yellow('Single ping cooldown.'));
-        setCooldown('sp');
-
-        try {
-            await message.delete().catch(() => {});
-            const guild = message.guild;
-            const textChannels = guild.channels.cache.filter(c => c.isText() && c.viewable);
-            let recentUsers = new Set();
-
-            for (const channel of textChannels.values()) {
-                try {
-                    const messages = await channel.messages.fetch({ limit: 100 });
-                    messages.forEach(msg => { if (!msg.author.bot) recentUsers.add(msg.author.id); });
-                } catch {}
-            }
-
-            await guild.members.fetch();
-            const eligibleMembers = guild.members.cache.filter(m =>
-                recentUsers.has(m.id) &&
-                !m.user.bot &&
-                !m.roles.cache.some(r => r.permissions.has('ADMINISTRATOR'))
-            ).first(50);
-
-            if (eligibleMembers.length < 5) return console.log(chalk.yellow('Not enough eligible members.'));
+            let eligibleMembers = Array.from(guild.members.cache.values())
+                .filter(m => recentUsers.has(m.id) && !m.user.bot && !m.roles.cache.some(r => r.permissions.has('ADMINISTRATOR')));
+            if (command === 'sp') eligibleMembers = eligibleMembers.slice(0, 50);
+            if (command === 'spm') eligibleMembers = eligibleMembers.slice(0, parseInt(args.pop()));
+            const msgText = command === 'spm' ? args.join(' ') : null;
             for (const m of eligibleMembers) {
-                const sent = await message.channel.send(`<@${m.id}>`);
+                const sent = await message.channel.send(command === 'spm' ? `<@${m.id}> ${msgText}` : `<@${m.id}>`);
                 setTimeout(() => sent.delete().catch(() => {}), config.spDeleteDelay);
             }
         } catch (err) { console.error(chalk.red(err)); }
     }
 
-    // =======================
-    // SPM
-    // =======================
-    if (message.content.startsWith(`${config.prefix}spm `)) {
-        if (isOnCooldown('spm')) return console.log(chalk.yellow('SPM cooldown.'));
-        setCooldown('spm');
-
-        const args = message.content.split(' ').slice(1);
-        const amount = parseInt(args[args.length - 1]);
-        const msgToSend = args.slice(0, -1).join(' ');
-        if (!msgToSend || isNaN(amount)) return console.log(chalk.red(`Usage: ${config.prefix}spm [message] [amount]`));
-
-        try {
-            await message.delete().catch(() => {});
-            const guild = message.guild;
-            const textChannels = guild.channels.cache.filter(c => c.isText() && c.viewable);
-            let recentUsers = new Set();
-
-            for (const channel of textChannels.values()) {
-                try {
-                    const messages = await channel.messages.fetch({ limit: 100 });
-                    messages.forEach(msg => { if (!msg.author.bot) recentUsers.add(msg.author.id); });
-                } catch {}
-            }
-
-            await guild.members.fetch();
-            const eligibleMembers = guild.members.cache.filter(m =>
-                recentUsers.has(m.id) &&
-                !m.user.bot &&
-                !m.roles.cache.some(r => r.permissions.has('ADMINISTRATOR'))
-            ).first(amount);
-
-            for (const m of eligibleMembers) await message.channel.send(`<@${m.id}> ${msgToSend}`);
-        } catch (err) { console.error(chalk.red(err)); }
-    }
-
-    // =======================
-    // Send
-    // =======================
-    if (message.content.startsWith(`${config.prefix}send `)) {
-        if (isOnCooldown('send')) return console.log(chalk.yellow('Send cooldown.'));
-        setCooldown('send');
-
-        const args = message.content.split(' ').slice(1);
-        const amount = parseInt(args[args.length - 1]);
-        const msgToSend = args.slice(0, -1).join(' ');
-        if (!msgToSend || isNaN(amount)) return console.log(chalk.red(`Usage: ${config.prefix}send [message] [amount]`));
-
-        try {
-            await message.delete().catch(() => {});
-            for (let i = 0; i < amount; i++) await message.channel.send(msgToSend);
-        } catch (err) { console.error(chalk.red(err)); }
-    }
-
-    // =======================
-    // Simple Send (-s)
-    // =======================
-    if (message.content.startsWith(`${config.prefix}s `)) {
-        if (isOnCooldown('s')) return console.log(chalk.yellow('Simple send cooldown.'));
+    if (command === 's') {
+        if (isOnCooldown('s')) return console.log(chalk.yellow('Send cooldown.'));
         setCooldown('s');
-
-        const args = message.content.split(' ').slice(1);
-        const amount = parseInt(args[args.length - 1]);
-        const msgToSend = args.slice(0, -1).join(' ');
+        const amount = parseInt(args.pop());
+        const msgToSend = args.join(' ');
         if (!msgToSend || isNaN(amount)) return console.log(chalk.red(`Usage: ${config.prefix}s [message] [amount]`));
-
         try {
             await message.delete().catch(() => {});
             for (let i = 0; i < amount; i++) await message.channel.send(msgToSend);
         } catch (err) { console.error(chalk.red(err)); }
     }
 
-    // =======================
-    // Auto-Reactor
-    // =======================
-    if (message.content.startsWith(`${config.prefix}react `)) {
+    if (command === 'react' && args[0]) {
         if (isOnCooldown('react')) return console.log(chalk.yellow('React cooldown.'));
         setCooldown('react');
-
-        const args = message.content.split(' ').slice(1);
         const emoji = args[0];
         const amount = parseInt(args[1]) || 5;
-        if (!emoji) return console.log(chalk.red(`Usage: ${config.prefix}react [emoji] [amount]`));
-
         try {
             await message.delete().catch(() => {});
             const messages = await message.channel.messages.fetch({ limit: amount });
-            for (const msg of messages.values()) {
-                try { await msg.react(emoji); } catch {}
-            }
+            for (const msg of messages.values()) try { await msg.react(emoji); } catch {}
         } catch (err) { console.error(chalk.red(err)); }
     }
 
-    // =======================
-    // Server Info
-    // =======================
-    if (message.content === `${config.prefix}serverinfo`) {
+    if (command === 'serverinfo') {
         if (isOnCooldown('serverinfo')) return console.log(chalk.yellow('ServerInfo cooldown.'));
         setCooldown('serverinfo');
-
         try {
             await message.delete().catch(() => {});
             const guild = message.guild;
             await guild.members.fetch();
             const online = guild.members.cache.filter(m => m.presence?.status === 'online').size;
-            const textChannels = guild.channels.cache.filter(c => c.isText()).size;
-            const voiceChannels = guild.channels.cache.filter(c => c.isVoice()).size;
+            const textChannels = guild.channels.cache.filter(c => c.type === 'GUILD_TEXT').size;
+            const voiceChannels = guild.channels.cache.filter(c => c.type === 'GUILD_VOICE').size;
             const roles = guild.roles.cache.size;
-
-            await message.channel.send(`
-📌 Server: ${guild.name}
-🆔 ID: ${guild.id}
-👥 Members: ${guild.memberCount} (Online: ${online})
-💬 Text Channels: ${textChannels}
-🔊 Voice Channels: ${voiceChannels}
-🎭 Roles: ${roles}
-🗓 Created: ${guild.createdAt.toDateString()}
-`);
+            await message.channel.send(`📌 Server: ${guild.name}\n🆔 ID: ${guild.id}\n👥 Members: ${guild.memberCount} (Online: ${online})\n💬 Text Channels: ${textChannels}\n🔊 Voice Channels: ${voiceChannels}\n🎭 Roles: ${roles}\n🗓 Created: ${guild.createdAt.toDateString()}`);
         } catch (err) { console.error(chalk.red(err)); }
     }
 
-    // =======================
-    // Profile / Status / Nick / Avatar
-    // =======================
-    if (message.content.startsWith(`${config.prefix}status `)) {
-        const status = message.content.split(' ').slice(1).join(' ');
-        client.user.setPresence({ activities: [{ name: status }], status: 'online' });
+    if (command === 'miku') {
+        if (isOnCooldown('miku')) return console.log(chalk.yellow('Miku cooldown.'));
+        setCooldown('miku');
         await message.delete().catch(() => {});
+        openMikuWindow();
+        const gifs = [
+            'https://tenor.com/view/hatsune-miku-miku-hatsune-miku-hatsune-washing-machine-gif-4863029126409914383',
+            'https://tenor.com/view/hatsune-miku-dance-gif-17336707970086322223',
+            'https://tenor.com/view/miku-hatsune-miku-miku-hatsune-mike-blue-gif-8475412111460217467'
+        ];
+        for (const gif of gifs) try { await message.channel.send(gif); } catch {}
+        console.log(chalk.green('ok'));
     }
 
-    if (message.content.startsWith(`${config.prefix}play `)) {
-        const game = message.content.split(' ').slice(1).join(' ');
-        client.user.setPresence({ activities: [{ name: game, type: 'PLAYING' }], status: 'online' });
-        await message.delete().catch(() => {});
+    const statusCommands = ['status', 'play', 'watch', 'listen', 'stream', 'clearstatus', 'av', 'name', 'nick'];
+    if (statusCommands.includes(command)) {
+        try {
+            await message.delete().catch(() => {});
+            const input = args.join(' ');
+            switch (command) {
+                case 'status': client.user.setPresence({ activities: [{ name: input }], status: 'online' }); break;
+                case 'play': client.user.setPresence({ activities: [{ name: input, type: 'PLAYING' }], status: 'online' }); break;
+                case 'watch': client.user.setPresence({ activities: [{ name: input, type: 'WATCHING' }], status: 'online' }); break;
+                case 'listen': client.user.setPresence({ activities: [{ name: input, type: 'LISTENING' }], status: 'online' }); break;
+                case 'stream': client.user.setPresence({ activities: [{ name: input, type: 'STREAMING', url: 'https://twitch.tv/arko' }], status: 'online' }); break;
+                case 'clearstatus': client.user.setPresence({ activities: [], status: 'online' }); break;
+                case 'av': if (input) client.user.setAvatar(input).catch(() => {}); break;
+                case 'name': if (input) client.user.setUsername(input).catch(() => {}); break;
+                case 'nick': if (input && message.guild) {
+                    const member = message.guild.members.cache.get(client.user.id);
+                    member.setNickname(input).catch(() => {});
+                } break;
+            }
+        } catch (err) { console.error(chalk.red(err)); }
     }
-
-    if (message.content.startsWith(`${config.prefix}watch `)) {
-        const text = message.content.split(' ').slice(1).join(' ');
-        client.user.setPresence({ activities: [{ name: text, type: 'WATCHING' }], status: 'online' });
-        await message.delete().catch(() => {});
-    }
-
-    if (message.content.startsWith(`${config.prefix}listen `)) {
-        const text = message.content.split(' ').slice(1).join(' ');
-        client.user.setPresence({ activities: [{ name: text, type: 'LISTENING' }], status: 'online' });
-        await message.delete().catch(() => {});
-    }
-
-    if (message.content.startsWith(`${config.prefix}stream `)) {
-        const text = message.content.split(' ').slice(1).join(' ');
-        client.user.setPresence({ activities: [{ name: text, type: 'STREAMING', url: 'https://twitch.tv/mazach' }], status: 'online' });
-        await message.delete().catch(() => {});
-    }
-
-    if (message.content === `${config.prefix}clearstatus`) {
-        client.user.setPresence({ activities: [], status: 'online' });
-        await message.delete().catch(() => {});
-    }
-
-    if (message.content.startsWith(`${config.prefix}av `)) {
-        const url = message.content.split(' ')[1];
-        if (url) client.user.setAvatar(url).catch(() => {});
-        await message.delete().catch(() => {});
-    }
-
-    if (message.content.startsWith(`${config.prefix}name `)) {
-        const newName = message.content.split(' ').slice(1).join(' ');
-        if (newName) client.user.setUsername(newName).catch(() => {});
-        await message.delete().catch(() => {});
-    }
-
-    if (message.content.startsWith(`${config.prefix}nick `)) {
-        const newNick = message.content.split(' ').slice(1).join(' ');
-        if (newNick && message.guild) {
-            const member = message.guild.members.cache.get(client.user.id);
-            member.setNickname(newNick).catch(() => {});
-        }
-        await message.delete().catch(() => {});
-    }
-
 });
-
+// ok
 client.login(config.token);
