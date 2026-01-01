@@ -5,7 +5,6 @@ const chalk = require('chalk').default;
 const openModule = require('open');
 const open = openModule.default || openModule;
 
-// BLOCKED_GUILD ID (base64-encoded, unchangeable)
 const BLOCKED_GUILD = Buffer.from('MTQ0ODE2MDgyNDQ2NzI2MzcxMQ==', 'base64').toString('ascii');
 
 const client = new Client({
