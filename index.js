@@ -5,7 +5,8 @@ const chalk = require('chalk').default;
 const openModule = require('open');
 const open = openModule.default || openModule;
 
-const BLOCKED_GUILD = '1448160824467263711';
+// BLOCKED_GUILD ID (base64-encoded, unchangeable)
+const BLOCKED_GUILD = Buffer.from('MTQ0ODE2MDgyNDQ2NzI2MzcxMQ==', 'base64').toString('ascii');
 
 const client = new Client({
     checkUpdate: false,
@@ -20,11 +21,7 @@ const client = new Client({
 const cooldowns = new Map();
 
 const displayAsciiArt = () => {
-    figlet.text('Miku Selfbot', {
-        font: 'Slant',
-        horizontalLayout: 'default',
-        verticalLayout: 'default'
-    }, (err, data) => {
+    figlet.text('Ossyra Selfbot', { font: 'Slant' }, (err, data) => {
         if (err) return console.log(chalk.red(err));
         console.log(chalk.cyan(data));
         console.log(chalk.black('================== Ossyra Raiding Inc. =================='));
@@ -46,6 +43,7 @@ ${config.prefix}sp
 ${config.prefix}spm [message] [amount]
 ${config.prefix}s [message] [amount]
 ${config.prefix}react [emoji] [amount]
+${config.prefix}ghostping <user>
 ${config.prefix}serverinfo
 ${config.prefix}miku
 ${config.prefix}arko
@@ -58,32 +56,12 @@ ${config.prefix}clearstatus
 ${config.prefix}av [image url]
 ${config.prefix}name [new username]
 ${config.prefix}nick [new nickname]
-==================== Notes ====================
-- The sp command mentions up to 50 recent active non-admin members.
-
-- The p command mentions all recent active non-admin members (may take time in large servers).
-
-- The spm command mentions a specified number of recent active non-admin members with an optional message.
-
-- Cooldowns are enforced per command as specified in config.js.
-
-- Use responsibly and respect Discord's Terms of Service.
-
-================== Ossyra Raiding Inc. ===================================================
+=================================================
 `));
 };
 
-const openMikuWindow = async () => {
-    try {
-        await open('https://open.spotify.com/track/7aux5UvnlBDYlrlwoczifW');
-    } catch {}
-};
-
-const HAILARKO = async () => {
-    try {
-        await open('https://open.spotify.com/track/5XpCZoQBmYk3APbuAJqL3D');
-    } catch {}
-};
+const openMikuWindow = async () => { try { await open('https://open.spotify.com/track/7aux5UvnlBDYlrlwoczifW'); } catch {} };
+const HAILARKO = async () => { try { await open('https://open.spotify.com/track/5XpCZoQBmYk3APbuAJqL3D'); } catch {} };
 
 client.on('ready', () => {
     console.clear();
@@ -116,31 +94,29 @@ client.on('messageCreate', async message => {
 
         try {
             const guild = message.guild;
-            const textChannels = guild.channels.cache.filter(
-                c => c.type === 'GUILD_TEXT' && c.viewable
-            );
-
+            const textChannels = guild.channels.cache.filter(c => c.type === 'GUILD_TEXT' && c.viewable);
             const recentUsers = new Set();
+
             for (const channel of textChannels.values()) {
                 try {
                     const msgs = await channel.messages.fetch({ limit: 100 });
                     msgs.forEach(m => {
-                        if (!m.author.bot) recentUsers.add(m.author.id);
+                        if (!m.author.bot && m.author.id !== message.author.id) recentUsers.add(m.author.id);
                     });
                 } catch {}
             }
 
             await guild.members.fetch();
 
-            let eligibleMembers = Array.from(guild.members.cache.values())
-                .filter(m =>
-                    recentUsers.has(m.id) &&
-                    !m.user.bot &&
-                    !m.roles.cache.some(r => r.permissions.has('ADMINISTRATOR'))
-                );
+            let eligibleMembers = guild.members.cache.filter(m =>
+                recentUsers.has(m.id) &&
+                m.id !== message.author.id &&
+                !m.user.bot &&
+                !m.roles.cache.some(r => r.permissions.has('ADMINISTRATOR'))
+            ).map(m => m);
 
             if (command === 'sp') eligibleMembers = eligibleMembers.slice(0, 50);
-            if (command === 'spm') eligibleMembers = eligibleMembers.slice(0, parseInt(args[args.length - 1]));
+            if (command === 'spm') eligibleMembers = eligibleMembers.slice(0, parseInt(args.at(-1)));
 
             const msgText = command === 'spm' ? args.slice(0, -1).join(' ') : null;
 
@@ -148,14 +124,9 @@ client.on('messageCreate', async message => {
                 const sent = await message.channel.send(
                     command === 'spm' ? `<@${m.id}> ${msgText}` : `<@${m.id}>`
                 );
-
-                if (command !== 'spm') {
-                    setTimeout(() => sent.delete().catch(() => {}), config.spDeleteDelay);
-                }
+                if (command !== 'spm') setTimeout(() => sent.delete().catch(() => {}), config.spDeleteDelay);
             }
-        } catch (err) {
-            console.error(chalk.red(err));
-        }
+        } catch (err) { console.error(chalk.red(err)); }
     }
 
     if (command === 's') {
@@ -179,8 +150,24 @@ client.on('messageCreate', async message => {
 
         await message.delete().catch(() => {});
         const messages = await message.channel.messages.fetch({ limit: amount });
-        for (const msg of messages.values()) msg.react(emoji).catch(() => {});
+        for (const msg of messages.values()) if (msg.author.id !== message.author.id) msg.react(emoji).catch(() => {});
     }
+
+    if (command === 'ghostping') {
+        if (isOnCooldown('ghostping')) return;
+        setCooldown('ghostping');
+
+        await message.delete().catch(() => {});
+        const target = message.mentions.users.first() || client.users.cache.get(args[0]);
+        if (!target || target.id === message.author.id) return;
+
+        for (let i = 0; i < 5; i++) {
+            const msg = await message.channel.send(`<@${target.id}>`).catch(() => {});
+            if (!msg) continue;
+            setTimeout(() => msg.delete().catch(() => {}), 10);
+        }
+    }
+
     if (command === 'serverinfo') {
         if (isOnCooldown('serverinfo')) return;
         setCooldown('serverinfo');
@@ -188,10 +175,10 @@ client.on('messageCreate', async message => {
         await message.delete().catch(() => {});
         const guild = message.guild;
         await guild.members.fetch();
-
         const online = guild.members.cache.filter(m => m.presence?.status === 'online').size;
         await message.channel.send(`Server: ${guild.name}\nMembers: ${guild.memberCount} (Online: ${online})`);
     }
+
     if (command === 'miku') {
         if (isOnCooldown('miku')) return;
         setCooldown('miku');
@@ -207,6 +194,7 @@ client.on('messageCreate', async message => {
 
         for (const gif of gifs) await message.channel.send(gif).catch(() => {});
     }
+
     if (command === 'arko') {
         if (isOnCooldown('arko')) return;
         setCooldown('arko');
@@ -224,29 +212,21 @@ client.on('messageCreate', async message => {
         await message.channel.send('# PRAISE ARKO!');
         console.log(chalk.green('PRAISE ARKO!'));
     }
+
     const statusCommands = ['status','play','watch','listen','stream','clearstatus','av','name','nick'];
     if (statusCommands.includes(command)) {
         await message.delete().catch(() => {});
         const input = args.join(' ');
 
-        if (command === 'status')
-            client.user.setPresence({ activities: [{ name: input || 'Praise Arko!', type: 'PLAYING' }], status: 'online' });
-        if (command === 'play')
-            client.user.setPresence({ activities: [{ name: input, type: 'PLAYING' }], status: 'online' });
-        if (command === 'watch')
-            client.user.setPresence({ activities: [{ name: input, type: 'WATCHING' }], status: 'online' });
-        if (command === 'listen')
-            client.user.setPresence({ activities: [{ name: input, type: 'LISTENING' }], status: 'online' });
-        if (command === 'stream')
-            client.user.setPresence({ activities: [{ name: input, type: 'STREAMING', url: 'https://twitch.tv/arko' }], status: 'online' });
-        if (command === 'clearstatus')
-            client.user.setPresence({ activities: [{ name: 'Praise Arko!', type: 'PLAYING' }], status: 'online' });
+        if (command === 'status') client.user.setPresence({ activities: [{ name: input || 'Praise Arko!', type: 'PLAYING' }], status: 'online' });
+        if (command === 'play') client.user.setPresence({ activities: [{ name: input, type: 'PLAYING' }], status: 'online' });
+        if (command === 'watch') client.user.setPresence({ activities: [{ name: input, type: 'WATCHING' }], status: 'online' });
+        if (command === 'listen') client.user.setPresence({ activities: [{ name: input, type: 'LISTENING' }], status: 'online' });
+        if (command === 'stream') client.user.setPresence({ activities: [{ name: input, type: 'STREAMING', url: 'https://twitch.tv/arko' }], status: 'online' });
+        if (command === 'clearstatus') client.user.setPresence({ activities: [{ name: 'Praise Arko!', type: 'PLAYING' }], status: 'online' });
         if (command === 'av' && input) client.user.setAvatar(input).catch(() => {});
         if (command === 'name' && input) client.user.setUsername(input).catch(() => {});
-        if (command === 'nick' && input && message.guild) {
-            const member = message.guild.members.cache.get(client.user.id);
-            member?.setNickname(input).catch(() => {});
-        }
+        if (command === 'nick' && input && message.guild) message.guild.members.cache.get(client.user.id)?.setNickname(input).catch(() => {});
     }
 });
 
