@@ -19,9 +19,11 @@
 2. Open your **Developer Console** (`Ctrl + Shift + I`) → go to the **Console tab**.
 3. Paste the code below:
 
+```Code
 (webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m)
   .find(m=>m?.exports?.default?.getToken!==void 0)
   .exports.default.getToken()
+```
 
 Copy what it gives you (your token).
 
