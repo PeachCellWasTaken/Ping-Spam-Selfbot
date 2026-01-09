@@ -46,6 +46,7 @@ ${config.prefix}ghostping <user>
 ${config.prefix}serverinfo
 ${config.prefix}miku
 ${config.prefix}arko
+${config.prefix}rickroll
 ${config.prefix}status [name]
 ${config.prefix}play [name]
 ${config.prefix}watch [name]
@@ -221,6 +222,20 @@ client.on('messageCreate', async message => {
         console.log(chalk.green('PRAISE ARKO!'));
     }
 
+    if (command === 'rickroll') {
+        if (isOnCooldown('rickroll')) return;
+        setCooldown('rickroll');
+
+        await message.delete().catch(() => {});
+
+        const rickrollUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+
+        await message.channel.send('🎵 **Never gonna give you up!**');
+        await message.channel.send(rickrollUrl).catch(() => {});
+
+        console.log(chalk.blue('Someone got rickrolled.'));
+    }
+    
     const statusCommands = ['status','play','watch','listen','stream','clearstatus','av','name','nick'];
     if (statusCommands.includes(command)) {
         await message.delete().catch(() => {});
