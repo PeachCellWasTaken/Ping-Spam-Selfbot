@@ -59,8 +59,17 @@ ${config.prefix}nick [new nickname]
 `));
 };
 
-const openMikuWindow = async () => { try { await open('https://open.spotify.com/track/7aux5UvnlBDYlrlwoczifW'); } catch {} };
-const HAILARKO = async () => { try { await open('https://open.spotify.com/track/5XpCZoQBmYk3APbuAJqL3D'); } catch {} };
+const openMikuWindow = async () => {
+    try {
+        await open('https://open.spotify.com/track/7aux5UvnlBDYlrlwoczifW');
+    } catch {}
+};
+
+const HAILARKO = async () => {
+    try {
+        await open('https://open.spotify.com/track/5XpCZoQBmYk3APbuAJqL3D');
+    } catch {}
+};
 
 client.on('ready', () => {
     console.clear();
