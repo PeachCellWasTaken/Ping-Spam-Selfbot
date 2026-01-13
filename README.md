@@ -16,16 +16,9 @@
 ## Getting your Discord Token:
 
 1. Go to [https://discord.com](https://discord.com), sign in.
-2. Open your **Developer Console** (`Ctrl + Shift + I`) → go to the **Console tab**.
-3. Paste the code below:
-
-```Code
-(webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m)
-  .find(m=>m?.exports?.default?.getToken!==void 0)
-  .exports.default.getToken()
-```
-
-Copy what it gives you (your token).
+2. Open your **Developer Console** (`Ctrl + Shift + I`) → go to the **Network tab**, then in filter search @me.
+3. Refresh the page, look for @me - scroll down till you see "authorization".
+4. copy everything to the RIGHT of authorization.
 
 Open the config.js file.
 
